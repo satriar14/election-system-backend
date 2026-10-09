@@ -1,0 +1,139 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPERADMIN
+  ADMIN
+  PENGAWAS
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  CANCELLED
+}
+
+enum ElectionStatus {
+  DRAFT
+  UPCOMING
+  ONGOING
+  COMPLETED
+  CANCELLED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  password     String
+  role         UserRole
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sentInvitations Invitation[] @relation("InvitationSender")
+  auditLogs       AuditLog[]
+
+  @@index([role])
+}
+
+model Invitation {
+  id          String           @id @default(cuid())
+  email       String
+  role        UserRole
+  token       String           @unique
+  status      InvitationStatus @default(PENDING)
+  expiresAt   DateTime
+  createdAt   DateTime         @default(now())
+  acceptedAt  DateTime?
+
+  invitedById String
+  invitedBy   User             @relation("InvitationSender", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@index([email])
+  @@index([status])
+}
+
+model House {
+  id          String   @id @default(cuid())
+  block       String
+  houseNumber String
+  voterQuota  Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  votes Vote[]
+
+  @@unique([block, houseNumber])
+  @@index([block])
+}
+
+model Election {
+  id          String         @id @default(cuid())
+  title       String
+  description String?
+  status      ElectionStatus @default(DRAFT)
+  startAt     DateTime?
+  endAt       DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  candidates Candidate[]
+  votes      Vote[]
+}
+
+model Candidate {
+  id          String   @id @default(cuid())
+  name        String
+  photo       String?
+  vision      String?
+  mission     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  electionId String
+  election   Election @relation(fields: [electionId], references: [id], onDelete: Cascade)
+
+  votes Vote[]
+
+  @@index([electionId])
+}
+
+model Vote {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  houseId     String
+  candidateId String
+  electionId  String
+
+  house     House     @relation(fields: [houseId], references: [id])
+  candidate Candidate @relation(fields: [candidateId], references: [id])
+  election  Election  @relation(fields: [electionId], references: [id])
+
+  @@index([houseId])
+  @@index([candidateId])
+  @@index([electionId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String
+  entity    String?
+  entityId  String?
+  details   String?
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+}
