@@ -30,15 +30,9 @@ const getOrCreateDefaultElection = async () => {
 export const getAllCandidates = async (req: AuthRequest, res: Response) => {
   try {
     const candidates = await prisma.candidate.findMany({
-      orderBy: {
-        createdAt: "asc",
-      },
+      orderBy: { createdAt: "asc" },
       include: {
-        _count: {
-          select: {
-            votes: true,
-          },
-        },
+        _count: { select: { votes: true } },
       },
     });
 
@@ -74,18 +68,10 @@ export const getCandidatesByElection = async (req: AuthRequest, res: Response) =
     const electionId = req.params.electionId as string;
 
     const candidates = await prisma.candidate.findMany({
-      where: {
-        electionId,
-      },
-      orderBy: {
-        createdAt: "asc",
-      },
+      where: { electionId },
+      orderBy: { createdAt: "asc" },
       include: {
-        _count: {
-          select: {
-            votes: true,
-          },
-        },
+        _count: { select: { votes: true } },
       },
     });
 
@@ -124,9 +110,7 @@ export const getCandidateById = async (req: AuthRequest, res: Response) => {
       where: { id },
       include: {
         election: true,
-        _count: {
-          select: { votes: true },
-        },
+        _count: { select: { votes: true } },
       },
     });
 
