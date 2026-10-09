@@ -281,23 +281,28 @@ export const deleteCandidate = async (req: AuthRequest, res: Response) => {
       where: { candidateId: id },
     });
 
-    if (voteCount > 0) {
-      return res.status(409).json({
+    if (voteCount > 0 && req.user!.role !== "SUPERADMIN") {
+      return res.status(403).json({
         success: false,
-        message: `Kandidat tidak dapat dihapus karena sudah memiliki ${voteCount} suara`,
+        message: `Kandidat tidak dapat dihapus karena sudah memiliki ${voteCount} suara. Hanya superadmin yang dapat menghapusnya`,
       });
     }
 
-    await prisma.candidate.delete({
-      where: { id },
-    });
+    // Suara kandidat ikut dihapus (relasi Vote -> Candidate bersifat RESTRICT)
+    await prisma.$transaction([
+      prisma.vote.deleteMany({ where: { candidateId: id } }),
+      prisma.candidate.delete({ where: { id } }),
+    ]);
 
     await createAuditLog({
       userId: req.user!.userId,
       action: "DELETE",
       entity: "CANDIDATE",
       entityId: candidate.id,
-      details: `Menghapus kandidat "${candidate.name}"`,
+      details:
+        voteCount > 0
+          ? `Menghapus kandidat "${candidate.name}" beserta ${voteCount} suaranya`
+          : `Menghapus kandidat "${candidate.name}"`,
     });
 
     return res.json({
