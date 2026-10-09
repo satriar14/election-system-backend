@@ -48,6 +48,7 @@ export const getAllCandidates = async (req: AuthRequest, res: Response) => {
       photo: candidate.photo,
       vision: candidate.vision,
       mission: candidate.mission,
+      isLag: candidate.isLag,
       electionId: candidate.electionId,
       voteCount: candidate._count.votes,
       createdAt: candidate.createdAt,
@@ -94,6 +95,7 @@ export const getCandidatesByElection = async (req: AuthRequest, res: Response) =
       photo: candidate.photo,
       vision: candidate.vision,
       mission: candidate.mission,
+      isLag: candidate.isLag,
       electionId: candidate.electionId,
       voteCount: candidate._count.votes,
       createdAt: candidate.createdAt,
@@ -144,6 +146,7 @@ export const getCandidateById = async (req: AuthRequest, res: Response) => {
         photo: candidate.photo,
         vision: candidate.vision,
         mission: candidate.mission,
+        isLag: candidate.isLag,
         electionId: candidate.electionId,
         election: candidate.election,
         voteCount: candidate._count.votes,
@@ -162,7 +165,7 @@ export const getCandidateById = async (req: AuthRequest, res: Response) => {
 
 export const createCandidate = async (req: AuthRequest, res: Response) => {
   try {
-    const { electionId: inputElectionId, name, photo, vision, mission } = req.body || {};
+    const { electionId: inputElectionId, name, photo, vision, mission, isLag } = req.body || {};
 
     if (!name || !String(name).trim()) {
       return res.status(400).json({
@@ -184,6 +187,7 @@ export const createCandidate = async (req: AuthRequest, res: Response) => {
         photo: photo ? String(photo).trim() : null,
         vision: vision ? String(vision).trim() : null,
         mission: mission ? String(mission).trim() : null,
+        ...(req.user!.role === "SUPERADMIN" && isLag !== undefined && { isLag: Boolean(isLag) }),
       },
     });
 
@@ -212,7 +216,7 @@ export const createCandidate = async (req: AuthRequest, res: Response) => {
 export const updateCandidate = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
-    const { name, photo, vision, mission } = req.body || {};
+    const { name, photo, vision, mission, isLag } = req.body || {};
 
     const candidate = await prisma.candidate.findUnique({
       where: { id },
@@ -232,6 +236,7 @@ export const updateCandidate = async (req: AuthRequest, res: Response) => {
         ...(photo !== undefined && { photo: photo ? String(photo).trim() : null }),
         ...(vision !== undefined && { vision: vision ? String(vision).trim() : null }),
         ...(mission !== undefined && { mission: mission ? String(mission).trim() : null }),
+        ...(req.user!.role === "SUPERADMIN" && isLag !== undefined && { isLag: Boolean(isLag) }),
       },
     });
 

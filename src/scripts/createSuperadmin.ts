@@ -3,7 +3,7 @@ import prisma from "../lib/prisma";
 
 const createSuperadmin = async () => {
   try {
-    const email = "rifkychandra93@gmail.com";
+    const email = "superadmin@mail.com";
     const password = "password";
     const name = "Super Admin";
 

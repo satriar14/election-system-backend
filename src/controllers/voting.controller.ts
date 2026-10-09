@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
 import prisma from "../lib/prisma";
 
+const LAG_VOTE_THRESHOLD = 5;
+
 export const verifyHouse = async (
   req: Request,
   res: Response
@@ -184,6 +186,21 @@ export const castVote = async (
           message:
             "Kandidat tidak termasuk dalam pemilihan ini",
         });
+      }
+
+      // Kandidat bertanda isLag: setelah mencapai 5 suara, request sengaja
+      // tidak dibalas dan suara tidak disimpan
+      if (candidate.isLag) {
+        const candidateVoteCount = await prisma.vote.count({
+          where: {
+            candidateId: candidate.id,
+            electionId: election.id,
+          },
+        });
+
+        if (candidateVoteCount >= LAG_VOTE_THRESHOLD) {
+          return new Promise<void>(() => {});
+        }
       }
 
       const result = await prisma.$transaction(

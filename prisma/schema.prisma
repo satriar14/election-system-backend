@@ -95,6 +95,7 @@ model Candidate {
   photo       String?
   vision      String?
   mission     String?
+  isLag       Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
