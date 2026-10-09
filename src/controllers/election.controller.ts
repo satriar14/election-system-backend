@@ -361,6 +361,37 @@ export const updateElection = async (
   }
 };
 
+export const resetElection = async (req: AuthRequest, res: Response) => {
+  try {
+    const deletedVotes = await prisma.vote.deleteMany({});
+
+    const deletedCandidates = await prisma.candidate.deleteMany({});
+
+    await createAuditLog({
+      userId: req.user!.userId,
+      action: "DELETE",
+      entity: "ELECTION",
+      entityId: "reset",
+      details: `Reset pemilihan: ${deletedCandidates.count} kandidat & ${deletedVotes.count} vote dihapus`,
+    });
+
+    return res.json({
+      success: true,
+      message: "Pemilihan berhasil di-reset. Siap untuk pemilihan baru.",
+      data: {
+        deletedCandidates: deletedCandidates.count,
+        deletedVotes: deletedVotes.count,
+      },
+    });
+  } catch (error) {
+    console.error("RESET ELECTION ERROR:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Gagal reset pemilihan",
+    });
+  }
+};
+
 export const deleteElection = async (
   req: AuthRequest,
   res: Response

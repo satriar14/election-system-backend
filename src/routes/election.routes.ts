@@ -5,6 +5,7 @@ import {
   createElection,
   updateElection,
   deleteElection,
+  resetElection,
 } from "../controllers/election.controller";
 import { authenticate } from "../middleware/auth.middleware";
 import { authorize } from "../middleware/role.middleware";
@@ -16,6 +17,13 @@ router.get(
   authenticate,
   authorize("SUPERADMIN", "ADMIN", "PENGAWAS"),
   getElections
+);
+
+router.post(
+  "/reset",
+  authenticate,
+  authorize("SUPERADMIN", "ADMIN"),
+  resetElection
 );
 
 router.get(
