@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import prisma from "../lib/prisma";
+import { findActiveElection, syncElectionStatus } from "../lib/election";
 
 const LAG_VOTE_THRESHOLD = 5;
 
@@ -125,30 +126,36 @@ export const castVote = async (
         .trim();
   
       // Pastikan election ada dan sedang berlangsung
-      const election = await prisma.election.findUnique({
+      const foundElection = await prisma.election.findUnique({
         where: {
           id: String(electionId),
         },
       });
-  
-      if (!election) {
+
+      if (!foundElection) {
         return res.status(404).json({
           success: false,
           message: "Pemilihan tidak ditemukan",
         });
       }
-  
-      if (election.status !== "ONGOING") {
-        await prisma.election.update({
-          where: {
-            id: String(electionId),
-          },
-          data: {
-            status: "ONGOING",
-          },
+
+      const election = await syncElectionStatus(foundElection);
+
+      if (election.status === "COMPLETED") {
+        return res.status(400).json({
+          success: false,
+          message: "Waktu pemilihan sudah berakhir",
         });
       }
-  
+
+      // ONGOING tanpa endAt belum melalui publikasi (data lama)
+      if (election.status !== "ONGOING" || !election.endAt) {
+        return res.status(400).json({
+          success: false,
+          message: "Pemilihan belum dibuka",
+        });
+      }
+
       // Cek waktu pemilihan jika diatur
       const now = new Date();
   
@@ -304,86 +311,7 @@ export const castVote = async (
     res: Response
   ) => {
     try {
-      // 1. Priority: Find election that has candidates
-      let election = await prisma.election.findFirst({
-        where: {
-          candidates: {
-            some: {},
-          },
-        },
-        orderBy: {
-          createdAt: "desc",
-        },
-        include: {
-          candidates: {
-            orderBy: {
-              createdAt: "asc",
-            },
-          },
-        },
-      });
-
-      // 2. Priority: Find election with status ONGOING
-      if (!election) {
-        election = await prisma.election.findFirst({
-          where: {
-            status: "ONGOING",
-          },
-          orderBy: {
-            createdAt: "desc",
-          },
-          include: {
-            candidates: {
-              orderBy: {
-                createdAt: "asc",
-              },
-            },
-          },
-        });
-      }
-
-      // 3. Priority: Find latest election created
-      if (!election) {
-        election = await prisma.election.findFirst({
-          orderBy: {
-            createdAt: "desc",
-          },
-          include: {
-            candidates: {
-              orderBy: {
-                createdAt: "asc",
-              },
-            },
-          },
-        });
-      }
-
-      // Ensure election status is set to ONGOING
-      if (election && election.status !== "ONGOING") {
-        await prisma.election.update({
-          where: { id: election.id },
-          data: { status: "ONGOING" },
-        });
-        election.status = "ONGOING";
-      }
-
-      // 4. Priority: Create default election if none exists
-      if (!election) {
-        election = await prisma.election.create({
-          data: {
-            title: "Pemilihan Ketua RT",
-            description: "Agenda Pemilihan Ketua RT Resmi",
-            status: "ONGOING",
-          },
-          include: {
-            candidates: {
-              orderBy: {
-                createdAt: "asc",
-              },
-            },
-          },
-        });
-      }
+      const election = await findActiveElection();
 
       return res.json({
         success: true,
@@ -395,6 +323,7 @@ export const castVote = async (
           status: election.status,
           startAt: election.startAt,
           endAt: election.endAt,
+          showGraph: election.showGraph,
           candidates: election.candidates.map(
             (candidate) => ({
               id: candidate.id,

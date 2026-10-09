@@ -14,13 +14,8 @@ const getOrCreateDefaultElection = async () => {
       data: {
         title: "Pemilihan Ketua RT",
         description: "Agenda Pemilihan Ketua RT Resmi",
-        status: "ONGOING",
+        status: "DRAFT",
       },
-    });
-  } else if (election.status !== "ONGOING") {
-    election = await prisma.election.update({
-      where: { id: election.id },
-      data: { status: "ONGOING" },
     });
   }
 

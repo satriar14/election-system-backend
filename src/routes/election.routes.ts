@@ -6,6 +6,8 @@ import {
   updateElection,
   deleteElection,
   resetElection,
+  publishActiveElection,
+  showActiveElectionGraph,
 } from "../controllers/election.controller";
 import { authenticate } from "../middleware/auth.middleware";
 import { authorize } from "../middleware/role.middleware";
@@ -24,6 +26,20 @@ router.post(
   authenticate,
   authorize("SUPERADMIN", "ADMIN"),
   resetElection
+);
+
+router.post(
+  "/active/publish",
+  authenticate,
+  authorize("SUPERADMIN", "ADMIN"),
+  publishActiveElection
+);
+
+router.post(
+  "/active/show-graph",
+  authenticate,
+  authorize("SUPERADMIN", "ADMIN"),
+  showActiveElectionGraph
 );
 
 router.get(

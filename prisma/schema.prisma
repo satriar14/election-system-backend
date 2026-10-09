@@ -82,6 +82,7 @@ model Election {
   status      ElectionStatus @default(DRAFT)
   startAt     DateTime?
   endAt       DateTime?
+  showGraph   Boolean        @default(false)
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
