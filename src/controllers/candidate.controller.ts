@@ -277,6 +277,17 @@ export const deleteCandidate = async (req: AuthRequest, res: Response) => {
       });
     }
 
+    const voteCount = await prisma.vote.count({
+      where: { candidateId: id },
+    });
+
+    if (voteCount > 0) {
+      return res.status(409).json({
+        success: false,
+        message: `Kandidat tidak dapat dihapus karena sudah memiliki ${voteCount} suara`,
+      });
+    }
+
     await prisma.candidate.delete({
       where: { id },
     });
