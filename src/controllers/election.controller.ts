@@ -35,6 +35,7 @@ export const getElections = async (
       title: election.title,
       description: election.description,
       status: election.status,
+      showGraph: election.showGraph,
       startAt: election.startAt,
       endAt: election.endAt,
       candidateCount: election._count.candidates,
@@ -181,6 +182,7 @@ export const createElection = async (
           ? String(description).trim()
           : null,
         status: electionStatus,
+        showGraph: false,
         startAt: parsedStartAt,
         endAt: parsedEndAt,
       },
@@ -303,8 +305,6 @@ export const updateElection = async (
       });
     }
 
-    // Pemilihan yang sudah memiliki vote tidak boleh
-    // dikembalikan ke DRAFT atau UPCOMING.
     if (
       existingElection._count.votes > 0 &&
       (newStatus === "DRAFT" ||
@@ -367,12 +367,23 @@ export const resetElection = async (req: AuthRequest, res: Response) => {
 
     const deletedCandidates = await prisma.candidate.deleteMany({});
 
+    await prisma.election.deleteMany({});
+
+    const newElection = await prisma.election.create({
+      data: {
+        title: "Pemilihan Ketua RT",
+        description: "Agenda Pemilihan Ketua RT Resmi",
+        status: "DRAFT",
+        showGraph: false,
+      },
+    });
+
     await createAuditLog({
       userId: req.user!.userId,
       action: "DELETE",
       entity: "ELECTION",
       entityId: "reset",
-      details: `Reset pemilihan: ${deletedCandidates.count} kandidat & ${deletedVotes.count} vote dihapus`,
+      details: `Reset pemilihan: ${deletedCandidates.count} kandidat & ${deletedVotes.count} vote dihapus. Election baru dibuat.`,
     });
 
     return res.json({
@@ -381,6 +392,7 @@ export const resetElection = async (req: AuthRequest, res: Response) => {
       data: {
         deletedCandidates: deletedCandidates.count,
         deletedVotes: deletedVotes.count,
+        newElectionId: newElection.id,
       },
     });
   } catch (error) {
@@ -388,6 +400,188 @@ export const resetElection = async (req: AuthRequest, res: Response) => {
     return res.status(500).json({
       success: false,
       message: "Gagal reset pemilihan",
+    });
+  }
+};
+
+export const endElectionNow = async (
+  req: AuthRequest,
+  res: Response
+) => {
+  try {
+    const id = req.params.id as string;
+
+    const election = await prisma.election.findUnique({
+      where: { id },
+    });
+
+    if (!election) {
+      return res.status(404).json({
+        success: false,
+        message: "Pemilihan tidak ditemukan",
+      });
+    }
+
+    if (election.status === "COMPLETED") {
+      return res.status(400).json({
+        success: false,
+        message: "Pemilihan sudah berakhir",
+      });
+    }
+
+    const updated = await prisma.election.update({
+      where: { id },
+      data: {
+        status: "COMPLETED",
+        endAt: new Date(),
+      },
+    });
+
+    await createAuditLog({
+      userId: req.user!.userId,
+      action: "UPDATE",
+      entity: "ELECTION",
+      entityId: updated.id,
+      details: `Mengakhiri pemilihan "${updated.title}" lebih awal`,
+    });
+
+    return res.json({
+      success: true,
+      message: "Pemilihan berhasil diakhiri",
+      data: updated,
+    });
+  } catch (error) {
+    console.error("END ELECTION NOW ERROR:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Gagal mengakhiri pemilihan",
+    });
+  }
+};
+
+export const publishElection = async (
+  req: AuthRequest,
+  res: Response
+) => {
+  try {
+    const id = req.params.id as string;
+    const { endAt } = req.body || {};
+
+    if (!endAt) {
+      return res.status(400).json({
+        success: false,
+        message: "Tanggal berakhir wajib diisi",
+      });
+    }
+
+    const parsedEndAt = new Date(endAt);
+    if (Number.isNaN(parsedEndAt.getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: "Format tanggal berakhir tidak valid",
+      });
+    }
+
+    if (parsedEndAt.getTime() <= Date.now()) {
+      return res.status(400).json({
+        success: false,
+        message: "Waktu berakhir harus lebih dari sekarang",
+      });
+    }
+
+    const election = await prisma.election.findUnique({
+      where: { id },
+    });
+
+    if (!election) {
+      return res.status(404).json({
+        success: false,
+        message: "Pemilihan tidak ditemukan",
+      });
+    }
+
+    const updated = await prisma.election.update({
+      where: { id },
+      data: {
+        status: "ONGOING",
+        showGraph: false,
+        startAt: new Date(),
+        endAt: parsedEndAt,
+      },
+    });
+
+    await createAuditLog({
+      userId: req.user!.userId,
+      action: "UPDATE",
+      entity: "ELECTION",
+      entityId: updated.id,
+      details: `Mempublikasikan pemilihan "${updated.title}" sampai ${parsedEndAt.toISOString()}`,
+    });
+
+    return res.json({
+      success: true,
+      message: "Pemilihan berhasil dipublikasikan",
+      data: updated,
+    });
+  } catch (error) {
+    console.error("PUBLISH ELECTION ERROR:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Gagal mempublikasikan pemilihan",
+    });
+  }
+};
+
+export const showGraphElection = async (
+  req: AuthRequest,
+  res: Response
+) => {
+  try {
+    const id = req.params.id as string;
+
+    const election = await prisma.election.findUnique({
+      where: { id },
+    });
+
+    if (!election) {
+      return res.status(404).json({
+        success: false,
+        message: "Pemilihan tidak ditemukan",
+      });
+    }
+
+    if (election.status !== "COMPLETED") {
+      return res.status(400).json({
+        success: false,
+        message: "Grafik hanya bisa ditampilkan setelah pemilihan berakhir",
+      });
+    }
+
+    const updated = await prisma.election.update({
+      where: { id },
+      data: {
+        showGraph: true,
+      },
+    });
+
+    await createAuditLog({
+      userId: req.user!.userId,
+      action: "UPDATE",
+      entity: "ELECTION",
+      entityId: updated.id,
+      details: `Menampilkan grafik hasil pemilihan "${updated.title}"`,
+    });
+
+    return res.json({
+      success: true,
+      message: "Grafik berhasil ditampilkan ke warga",
+      data: updated,
+    });
+  } catch (error) {
+    console.error("SHOW GRAPH ELECTION ERROR:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Gagal menampilkan grafik",
     });
   }
 };
