@@ -353,7 +353,6 @@ export const getInvitation = async (
       });
     }
 
-    // Invitation sudah tidak bisa digunakan
     if (invitation.status !== "PENDING") {
       return res.status(400).json({
         success: false,

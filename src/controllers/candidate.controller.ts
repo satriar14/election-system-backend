@@ -3,7 +3,6 @@ import prisma from "../lib/prisma";
 import { AuthRequest } from "../middleware/auth.middleware";
 import { createAuditLog } from "../services/audit.service";
 
-// Helper to find or create the default active election
 const getOrCreateDefaultElection = async () => {
   let election = await prisma.election.findFirst({
     orderBy: { createdAt: "desc" },
@@ -157,6 +156,24 @@ export const createCandidate = async (req: AuthRequest, res: Response) => {
     if (!targetElectionId) {
       const defaultElection = await getOrCreateDefaultElection();
       targetElectionId = defaultElection.id;
+    }
+
+    const election = await prisma.election.findUnique({
+      where: { id: targetElectionId },
+    });
+
+    if (!election) {
+      return res.status(404).json({
+        success: false,
+        message: "Pemilihan tidak ditemukan",
+      });
+    }
+
+    if (election.status === "COMPLETED" || election.status === "CANCELLED") {
+      return res.status(400).json({
+        success: false,
+        message: "Tidak dapat menambahkan kandidat pada pemilihan yang sudah selesai",
+      });
     }
 
     const candidate = await prisma.candidate.create({

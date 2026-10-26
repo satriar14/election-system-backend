@@ -80,6 +80,7 @@ model Election {
   title       String
   description String?
   status      ElectionStatus @default(DRAFT)
+  showGraph   Boolean        @default(false)
   startAt     DateTime?
   endAt       DateTime?
   showGraph   Boolean        @default(false)
