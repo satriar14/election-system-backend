@@ -73,6 +73,7 @@ export const verifyHouse = async (
         houseId: house.id,
         block: house.block,
         houseNumber: house.houseNumber,
+        ownerName: house.ownerName,
         voterQuota: house.voterQuota,
         usedQuota,
         remainingQuota,
@@ -98,6 +99,8 @@ export const castVote = async (
       houseNumber,
       candidateId,
       electionId,
+      ownerName,
+      voterName,
     } = req.body || {};
 
     if (
@@ -112,6 +115,12 @@ export const castVote = async (
           "Block, nomor rumah, candidate ID, dan election ID wajib diisi",
       });
     }
+
+    const incomingName = ownerName || voterName;
+    const trimmedName =
+      incomingName !== undefined && incomingName !== null && String(incomingName).trim() !== ""
+        ? String(incomingName).trim()
+        : null;
 
     const normalizedBlock = String(block)
       .trim()
@@ -206,6 +215,14 @@ export const castVote = async (
           throw new Error("QUOTA_EXHAUSTED");
         }
 
+        if (trimmedName && (!house.ownerName || house.ownerName.trim() === "")) {
+          await tx.house.update({
+            where: { id: house.id },
+            data: { ownerName: trimmedName },
+          });
+          house.ownerName = trimmedName;
+        }
+
         const vote = await tx.vote.create({
           data: {
             houseId: house.id,
@@ -236,6 +253,7 @@ export const castVote = async (
         candidateName: candidate.name,
         block: result.house.block,
         houseNumber: result.house.houseNumber,
+        ownerName: result.house.ownerName,
         voterQuota: result.house.voterQuota,
         usedQuota: result.usedQuota,
         remainingQuota: result.remainingQuota,

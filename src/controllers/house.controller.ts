@@ -30,6 +30,7 @@ export const getHouses = async (
       id: house.id,
       block: house.block,
       houseNumber: house.houseNumber,
+      ownerName: house.ownerName,
       voterQuota: house.voterQuota,
       usedQuota: house._count.votes,
       remainingQuota: Math.max(
@@ -91,6 +92,7 @@ export const getHouseById = async (
         id: house.id,
         block: house.block,
         houseNumber: house.houseNumber,
+        ownerName: house.ownerName,
         voterQuota: house.voterQuota,
         usedQuota,
         remainingQuota: Math.max(
@@ -116,7 +118,7 @@ export const createHouse = async (
   res: Response
 ) => {
   try {
-    const { block, houseNumber, voterQuota } = req.body || {};
+    const { block, houseNumber, voterQuota, ownerName } = req.body || {};
 
     if (!block || !houseNumber || voterQuota === undefined) {
       return res.status(400).json({
@@ -127,6 +129,10 @@ export const createHouse = async (
 
     const normalizedBlock = String(block).trim().toUpperCase();
     const normalizedHouseNumber = String(houseNumber).trim();
+    const normalizedOwnerName =
+      ownerName !== undefined && ownerName !== null && String(ownerName).trim() !== ""
+        ? String(ownerName).trim()
+        : null;
     const quota = Number(voterQuota);
 
     if (!normalizedBlock || !normalizedHouseNumber) {
@@ -163,6 +169,7 @@ export const createHouse = async (
       data: {
         block: normalizedBlock,
         houseNumber: normalizedHouseNumber,
+        ownerName: normalizedOwnerName,
         voterQuota: quota,
       },
     });
@@ -182,6 +189,7 @@ export const createHouse = async (
         id: house.id,
         block: house.block,
         houseNumber: house.houseNumber,
+        ownerName: house.ownerName,
         voterQuota: house.voterQuota,
         usedQuota: 0,
         remainingQuota: house.voterQuota,
@@ -203,7 +211,7 @@ export const updateHouse = async (
 ) => {
   try {
     const id = req.params.id as string;
-    const { block, houseNumber, voterQuota } = req.body || {};
+    const { block, houseNumber, voterQuota, ownerName } = req.body || {};
 
     const existingHouse = await prisma.house.findUnique({
       where: {
@@ -236,6 +244,11 @@ export const updateHouse = async (
       houseNumber !== undefined
         ? String(houseNumber).trim()
         : existingHouse.houseNumber;
+
+    const normalizedOwnerName =
+      ownerName !== undefined
+        ? (ownerName !== null && String(ownerName).trim() !== "" ? String(ownerName).trim() : null)
+        : existingHouse.ownerName;
 
     const quota =
       voterQuota !== undefined
@@ -287,6 +300,7 @@ export const updateHouse = async (
       data: {
         block: normalizedBlock,
         houseNumber: normalizedHouseNumber,
+        ownerName: normalizedOwnerName,
         voterQuota: quota,
       },
     });
@@ -306,6 +320,7 @@ export const updateHouse = async (
         id: house.id,
         block: house.block,
         houseNumber: house.houseNumber,
+        ownerName: house.ownerName,
         voterQuota: house.voterQuota,
         usedQuota,
         remainingQuota: Math.max(

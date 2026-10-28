@@ -65,6 +65,7 @@ model House {
   id          String   @id @default(cuid())
   block       String
   houseNumber String
+  ownerName   String?
   voterQuota  Int
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
